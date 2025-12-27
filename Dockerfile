@@ -1,14 +1,21 @@
-FROM eclipse-temurin:17-jdk-alpine
+# -------- BUILD STAGE --------
+FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /app
 
 COPY . .
 
-# FIX: give execute permission to gradlew
 RUN chmod +x gradlew
+RUN ./gradlew clean bootJar
 
-RUN ./gradlew build -x test
+# -------- RUNTIME STAGE --------
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# COPY JAR FROM BUILDER STAGE
+COPY --from=builder /app/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "build/libs/*.jar"]
+CMD ["java", "-jar", "app.jar"]
