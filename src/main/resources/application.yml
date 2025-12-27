@@ -1,0 +1,7 @@
+telegram:
+  bot:
+    token: ${8597929655:AAFUxfNLzxx-VyLYDP1svwnGlU8aScUfX1o}
+    username: ${bunpouchekkabot}
+
+server:
+  port: 8080
