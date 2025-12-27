@@ -1,6 +1,7 @@
 package com.example.telegram_bot.service;
 
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -8,69 +9,54 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 
 @Service
 public class JapaneseCorrectionService {
 
+    private static final Logger log = LoggerFactory.getLogger(JapaneseCorrectionService.class);
+
     private final WebClient webClient;
-    private final String model;
 
     public JapaneseCorrectionService(
-            @Value("${HF_API_KEY}") String apiKey,
-            @Value("${HF_MODEL}") String model) {
-
-        this.model = model;
+            @Value("${AI_BASE_URL}") String aiBaseUrl
+    ) {
         this.webClient = WebClient.builder()
-                .baseUrl("https://api-inference.huggingface.co")
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .baseUrl(aiBaseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
 
     public String correctJapanese(String input) {
 
+        if (input == null || input.isBlank()) {
+            return "入力が空です。テキストを送ってください。";
+        }
+
         input = input.length() > 200 ? input.substring(0, 200) : input;
 
-        String prompt = """
-        あなたは日本語教師です。
-        次の文を自然で正しい日本語に直してください。
-
-        文：
-        %s
-
-        答え：
-        """.formatted(input);
-
         Map<String, Object> body = Map.of(
-                "inputs", prompt,
-                "parameters", Map.of(
-                        "max_new_tokens", 64,
-                        "do_sample", false
-                )
+                "input", input
         );
 
         try {
-            Object raw = webClient.post()
-                    .uri("/models/" + model)
+            Map<?, ?> response = webClient.post()
+                    .uri("/infer")
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(Object.class)
-                    .block(Duration.ofSeconds(8));
+                    .bodyToMono(Map.class)
+                    .block(Duration.ofSeconds(15));
 
-            if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            if (response == null || !response.containsKey("corrected")) {
+                log.warn("Invalid response from AI Space: {}", response);
                 return "少し待ってから、もう一度送ってください。";
             }
 
-            Map<?, ?> item = (Map<?, ?>) list.get(0);
-
-            return item.get("generated_text")
-                    .toString()
-                    .replace(prompt, "")
-                    .trim();
+            return response.get("corrected").toString();
 
         } catch (Exception e) {
+            log.error("Error calling AI Space", e);
             return "エラーが発生しました。少し後でもう一度試してください。";
         }
     }
