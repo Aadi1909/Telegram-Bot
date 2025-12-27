@@ -66,24 +66,28 @@ public class JapaneseCorrectionService {
             Result r = response.getResult();
             StringBuilder reply = new StringBuilder();
 
-            if (r.getKanji() != null && !r.getKanji().isBlank()) {
-                reply.append("✅ 修正結果\n")
-                        .append(r.getKanji());
+            if (notBlank(r.getKanji())) {
+                reply.append("<b>✅ 修正結果</b>\n")
+                        .append(escapeHtml(r.getKanji()));
             }
 
-            if (r.getHiragana() != null && !r.getHiragana().isBlank()) {
-                reply.append("\n（").append(r.getHiragana()).append("）");
+            if (notBlank(r.getHiragana())) {
+                reply.append("\n（")
+                        .append(escapeHtml(r.getHiragana()))
+                        .append("）");
             }
 
-            if (r.getExplanation() != null && !r.getExplanation().isBlank()) {
-                reply.append("\n\n📘 解説\n")
-                        .append(r.getExplanation());
+            if (notBlank(r.getExplanation())) {
+                reply.append("\n\n<b>📘 解説</b>\n")
+                        .append(escapeHtml(r.getExplanation()));
             }
 
             if (r.getWarnings() != null && !r.getWarnings().isEmpty()) {
-                reply.append("\n\n⚠️ 注意\n");
+                reply.append("\n\n<b>⚠️ 注意</b>\n");
                 r.getWarnings().forEach(w ->
-                        reply.append("- ").append(w).append("\n")
+                        reply.append("- ")
+                                .append(escapeHtml(w))
+                                .append("\n")
                 );
             }
 
@@ -93,6 +97,17 @@ public class JapaneseCorrectionService {
             log.error("AI API call failed", e);
             return "エラーが発生しました。時間をおいて再度お試しください。";
         }
+    }
+
+    private boolean notBlank(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    private String escapeHtml(String text) {
+        return text == null ? null :
+                text.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;");
     }
 
     private Mono<? extends Throwable> handleError(ClientResponse response) {
